@@ -949,6 +949,8 @@ df['Involved'] = df['Involved'].astype(str)
 df['Involved'] = df['Involved'].str.upper().str.replace(r"[^A-Z0-9\s,]", "", regex=True)
 
 app = Dash(__name__)
+server = app.server
+
 app.title = "WatchMetro: Metro Manila Accidents Dashboard"
 
 # Filter Options
