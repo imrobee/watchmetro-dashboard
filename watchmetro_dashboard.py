@@ -7,7 +7,7 @@ Original file is located at
     https://colab.research.google.com/drive/16kNDwBRxDY4oPehCVKygvYkti31q69XF
 """
 
-! pip install dash
+pip install dash
 
 from dash import Dash, dcc, html, Input, Output, State, callback_context
 import pandas as pd
