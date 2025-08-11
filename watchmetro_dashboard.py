@@ -16,8 +16,8 @@ from folium.plugins import MarkerCluster
 from io import BytesIO
 import re
 import numpy as np
-from dash.dependencies import ALL
 import json
+from dash.dependencies import ALL
 
 df = pd.read_csv('dataset_cleaned.csv')
 
@@ -348,12 +348,25 @@ def update_time_button_styles(time_clicks, time_ids):
         triggered_prop_id = ctx.triggered[0]['prop_id']
         if triggered_prop_id != '.':
             try:
-                # Parse the component ID
-                component_id = json.loads(triggered_prop_id.split('.')[0])
-                time_filter = component_id['index']
-            except (json.JSONDecodeError, KeyError):
-                # Fallback to default
+                # Parse the component ID - more robust approach
+                if 'All Day' in triggered_prop_id:
+                    time_filter = 'All Day'
+                elif 'Morning' in triggered_prop_id:
+                    time_filter = 'Morning'
+                elif 'Afternoon' in triggered_prop_id:
+                    time_filter = 'Afternoon'
+                elif 'Evening' in triggered_prop_id:
+                    time_filter = 'Evening'
+            except Exception:
+                # Fallback to click count method
                 time_filter = 'All Day'
+
+    # Fallback: use the button with the highest click count
+    if time_filter == 'All Day' and time_clicks:
+        max_clicks = max(time_clicks) if time_clicks else 0
+        if max_clicks > 0:
+            max_index = time_clicks.index(max_clicks)
+            time_filter = time_ids[max_index]['index']
 
     # Return button classes and store the selected time
     button_classes = ['button active' if id_dict['index'] == time_filter else 'button' for id_dict in time_ids]
@@ -508,11 +521,12 @@ def update_theme(theme_value):
     theme = 'dark' if 'dark' in theme_value else 'light'
     return f'{theme}-theme', theme
 
-# Callback for updating graphs when theme changes (immediate theme change)
+# Combined callback for updating graphs and hiding loading overlay
 @app.callback(
     [Output('vehicle-bar-chart', 'figure'),
      Output('monthly-accidents-chart', 'figure'),
-     Output('hourly-accidents-chart', 'figure')],
+     Output('hourly-accidents-chart', 'figure'),
+     Output('loading-overlay', 'style')],
     [Input('theme-store', 'data'),
      Input('apply-filters-btn', 'n_clicks')],
     [State('selected-time-store', 'data'),
@@ -520,7 +534,12 @@ def update_theme(theme_value):
      State('city-dropdown', 'value')],
     prevent_initial_call=False
 )
-def update_graphs(theme, apply_clicks, time_filter, selected_month, selected_city):
+def update_graphs_and_loading(theme, apply_clicks, time_filter, selected_month, selected_city):
+    ctx = callback_context
+    
+    # Determine if this was triggered by apply button
+    is_apply_button = ctx.triggered and 'apply-filters-btn' in ctx.triggered[0]['prop_id']
+    
     theme_colors = dark_theme if theme == 'dark' else light_theme
 
     # Use current filter values or defaults
@@ -559,20 +578,23 @@ def update_graphs(theme, apply_clicks, time_filter, selected_month, selected_cit
 
     hourly_chart = create_hourly_chart(filtered_df, time_filter, selected_month, selected_city, theme_colors)
 
-    return bar_chart, monthly_chart, hourly_chart
+    # Hide loading overlay after processing
+    loading_style = {'display': 'none'}
 
-# Callback for showing/hiding loading overlay
+    return bar_chart, monthly_chart, hourly_chart, loading_style
+
+# Separate callback for showing loading overlay immediately when apply button is clicked
 @app.callback(
-    Output('loading-overlay', 'style'),
+    Output('loading-overlay', 'style', allow_duplicate=True),
     [Input('apply-filters-btn', 'n_clicks')],
     prevent_initial_call=True
 )
-def show_loading(n_clicks):
+def show_loading_immediately(n_clicks):
     if n_clicks > 0:
         return {'display': 'flex'}
     return {'display': 'none'}
 
-# Separate callback for updating map
+# Separate callback for updating map only when apply filters is clicked
 @app.callback(
     Output('leaflet-map', 'srcDoc'),
     [Input('apply-filters-btn', 'n_clicks')],
@@ -582,20 +604,24 @@ def show_loading(n_clicks):
      State('theme-store', 'data')],
     prevent_initial_call=True
 )
-def update_map(apply_clicks, time_filter, selected_month, selected_city, theme):
+def update_map_only(apply_clicks, time_filter, selected_month, selected_city, theme):
     # Use stored time filter or default
     if not time_filter:
         time_filter = 'All Day'
+    if not selected_month:
+        selected_month = 'All Months'
+    if not selected_city:
+        selected_city = 'All Cities'
 
     # Filter data
     filtered_df = df.copy()
 
     # Apply month filter
-    if selected_month and selected_month != 'All Months':
+    if selected_month != 'All Months':
         filtered_df = filtered_df[filtered_df['Month_Name'] == selected_month]
 
     # Apply city filter
-    if selected_city and selected_city != 'All Cities':
+    if selected_city != 'All Cities':
         filtered_df = filtered_df[filtered_df['City'] == selected_city]
 
     # Apply time filter
@@ -605,11 +631,16 @@ def update_map(apply_clicks, time_filter, selected_month, selected_city, theme):
     # Update Map (always use light theme for now)
     map_data = filtered_df.dropna(subset=['Latitude', 'Longitude'])
     updated_map = generate_folium_map(map_data, 'light')
-    buffer = BytesIO()
-    updated_map.save(buffer, close_file=False)
-    map_html = buffer.getvalue().decode("utf-8")
-
-    return map_html
+    
+    try:
+        buffer = BytesIO()
+        updated_map.save(buffer, close_file=False)
+        map_html = buffer.getvalue().decode("utf-8")
+        buffer.close()
+        return map_html
+    except Exception as e:
+        # Fallback to initial map if there's an error
+        return initial_map_html
 
 # Custom CSS
 app.index_string = '''
