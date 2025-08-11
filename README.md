@@ -50,6 +50,7 @@ Handling Null Values: Rows with null values in 'City', 'Location', or 'Type' wer
 5. **Geospatial Visualization**: A scatter map was generated using Plotly to visualize the locations of incidents based on Latitude and Longitude, with the size of the points representing the number of incidents at each location.
 6. **City Name Cleaning**: The 'City' column was cleaned by correcting inconsistent spellings ("Kalookan City" to "Caloocan" and "ParaÃ±aque" to "Parañaque").
 7. **Saving the Cleaned Data**: The processed DataFrame was saved to a new CSV file named "dataset_cleaned.csv".
+*Kindly refer to WatchMetro-Preprocessing.ipynb for more information on data pre-processing and EDA
 
 ## Authors
 
