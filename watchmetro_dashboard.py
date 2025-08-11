@@ -142,7 +142,7 @@ def generate_folium_map(data, theme):
     center_lat = data['Latitude'].mean()
     center_lon = data['Longitude'].mean()
 
-    # Use different tiles based on theme
+    # Use different tiles based on theme (though the dark theme doesn't look that good)
     tiles = 'CartoDB dark_matter' if theme == 'dark' else 'OpenStreetMap'
     m = folium.Map(location=[center_lat, center_lon], zoom_start=11, tiles=tiles)
 
@@ -295,10 +295,10 @@ app.layout = html.Div([
         html.Div([
             # Top row - Disclaimer
             html.Div([
-                html.P("DISCLAIMER: Data spans from 2018 to 2020.",
+                html.P("DISCLAIMER: This dashboard presents information on traffic incidents in Metro Manila reported by the MMDA from 2018 to 2020.",
                        style={'margin': '0 0 20px 0', 'fontSize': '14px', 'opacity': '0.8', 'textAlign': 'center'})
             ]),
-            # Bottom row - Authors and Dashboard info
+            # Bottom row - Authors
             html.Div([
                 html.Div([
                     html.H4("Authors", style={'margin': '0 0 10px 0', 'fontWeight': 'bold'}),
@@ -372,7 +372,6 @@ def update_time_button_styles(time_clicks, time_ids):
     button_classes = ['button active' if id_dict['index'] == time_filter else 'button' for id_dict in time_ids]
     return button_classes, time_filter
 
-# Enhanced function to create charts with no data handling
 def create_vehicle_chart(filtered_df, time_filter, selected_month, selected_city, theme_colors):
     if filtered_df.empty:
         return create_no_data_figure(
@@ -389,7 +388,7 @@ def create_vehicle_chart(filtered_df, time_filter, selected_month, selected_city
         return create_no_data_figure(
             f"Vehicles Involved in Accidents<br>({time_filter}, {selected_month}, {selected_city})",
             theme_colors,
-            "No vehicle data available for the selected filters"
+            "No accident data available for the selected filters"
         )
 
     vehicle_counts = vehicles_series.value_counts()
@@ -454,7 +453,7 @@ def create_hourly_chart(filtered_df, time_filter, selected_month, selected_city,
         return create_no_data_figure(
             f"Accidents by Hour of Day<br>({time_filter}, {selected_month}, {selected_city})",
             theme_colors,
-            "No hourly data available for the selected filters"
+            "No accident data available for the selected filters"
         )
 
     time_range = get_time_range(time_filter)
@@ -521,7 +520,6 @@ def update_theme(theme_value):
     theme = 'dark' if 'dark' in theme_value else 'light'
     return f'{theme}-theme', theme
 
-# Combined callback for updating graphs and hiding loading overlay
 @app.callback(
     [Output('vehicle-bar-chart', 'figure'),
      Output('monthly-accidents-chart', 'figure'),
