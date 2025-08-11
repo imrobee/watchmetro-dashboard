@@ -17,6 +17,7 @@ from io import BytesIO
 import re
 import numpy as np
 from dash.dependencies import ALL
+import json
 
 df = pd.read_csv('dataset_cleaned.csv')
 
@@ -38,9 +39,13 @@ dark_theme = {
 }
 
 # Ensure datetime columns are properly formatted
-df['Date_datetime'] = pd.to_datetime(df['Date_datetime'])
+df['Date_datetime'] = pd.to_datetime(df['Date_datetime'], errors='coerce')
 df['Time_datetime'] = pd.to_datetime(df['Time'], format='%I:%M %p', errors='coerce')
 df['Hour'] = df['Time_datetime'].dt.hour
+
+# Add Month_Name column if not exists
+if 'Month_Name' not in df.columns:
+    df['Month_Name'] = df['Date_datetime'].dt.month_name()
 
 # Create time period classifications
 def classify_time_period(hour):
@@ -58,7 +63,7 @@ def classify_time_period(hour):
 df['Time_Period'] = df['Hour'].apply(classify_time_period)
 
 def clean_vehicle_name(name):
-    if not isinstance(name, str):
+    if not isinstance(name, str) or pd.isna(name):
         return None
     name = name.strip().upper()
     name = re.sub(r"[^A-Z0-9\s]", "", name)
@@ -272,17 +277,17 @@ app.layout = html.Div([
         html.Div([dcc.Graph(id='hourly-accidents-chart')], className='card graph-card', style={'width': '100%'})
     ], className='graph-row', id='second-graph-row'),
 
-    # Loading overlay (initially visible for startup)
+    # Loading overlay (initially hidden)
     html.Div([
         html.Div([
             html.Div(className='spinner'),
             html.H3("Loading Dashboard...", style={'color': 'white', 'marginTop': '20px', 'textAlign': 'center'})
         ], className='loading-content')
-    ], id='loading-overlay', className='loading-overlay', style={'display': 'flex'}),
+    ], id='loading-overlay', className='loading-overlay', style={'display': 'none'}),
 
     # Store current theme state and selected time period
-    dcc.Store(id='theme-store', data='light'), # initially light mode
-    dcc.Store(id='selected-time-store', data='All Day'), # store selected time period
+    dcc.Store(id='theme-store', data='light'),
+    dcc.Store(id='selected-time-store', data='All Day'),
 
     # Footer
     html.Div([
@@ -330,32 +335,28 @@ app.layout = html.Div([
 @app.callback(
     [Output({'type': 'time-btn', 'index': ALL}, 'className'),
      Output('selected-time-store', 'data')],
-    Input({'type': 'time-btn', 'index': ALL}, 'n_clicks'),
-    State({'type': 'time-btn', 'index': ALL}, 'id'),
+    [Input({'type': 'time-btn', 'index': ALL}, 'n_clicks')],
+    [State({'type': 'time-btn', 'index': ALL}, 'id')],
     prevent_initial_call=True
 )
 def update_time_button_styles(time_clicks, time_ids):
-    # Find the most recently clicked button
     ctx = callback_context
     time_filter = 'All Day'  # default
 
-    # Check if any button was clicked
-    if ctx.triggered and ctx.triggered[0]['value'] > 0:
-        # Get the ID of the triggered button
-        triggered_id = ctx.triggered[0]['prop_id']
-        # Extract the button index from the prop_id
-        import json
-        button_id = json.loads(triggered_id.split('.')[0])
-        time_filter = button_id['index']
-    else:
-        # Fallback to max clicks logic
-        max_clicks = max(time_clicks) if time_clicks else 0
-        if max_clicks > 0:
-            max_index = time_clicks.index(max_clicks)
-            time_filter = time_ids[max_index]['index']
+    if ctx.triggered and len(ctx.triggered) > 0:
+        # Get the triggered component
+        triggered_prop_id = ctx.triggered[0]['prop_id']
+        if triggered_prop_id != '.':
+            try:
+                # Parse the component ID
+                component_id = json.loads(triggered_prop_id.split('.')[0])
+                time_filter = component_id['index']
+            except (json.JSONDecodeError, KeyError):
+                # Fallback to default
+                time_filter = 'All Day'
 
     # Return button classes and store the selected time
-    button_classes = ['button active' if id['index'] == time_filter else 'button' for id in time_ids]
+    button_classes = ['button active' if id_dict['index'] == time_filter else 'button' for id_dict in time_ids]
     return button_classes, time_filter
 
 # Enhanced function to create charts with no data handling
@@ -411,7 +412,7 @@ def create_monthly_chart(monthly_df, time_filter, selected_city, theme_colors):
             "No monthly data available for the selected filters"
         )
 
-    month_counts = monthly_df['Month_Name'].value_counts().reindex(month_options)
+    month_counts = monthly_df['Month_Name'].value_counts().reindex(month_options, fill_value=0)
 
     # Check if all months have 0 accidents
     if month_counts.sum() == 0:
@@ -497,70 +498,11 @@ def create_hourly_chart(filtered_df, time_filter, selected_month, selected_city,
     )
     return hourly_chart
 
-# Callback for initial dashboard load with default filters
-@app.callback(
-    [Output('vehicle-bar-chart', 'figure', allow_duplicate=True),
-     Output('monthly-accidents-chart', 'figure', allow_duplicate=True),
-     Output('hourly-accidents-chart', 'figure', allow_duplicate=True),
-     Output('leaflet-map', 'srcDoc', allow_duplicate=True),
-     Output('loading-overlay', 'style', allow_duplicate=True)],
-    Input('main-container', 'id'),  # Triggers on page load
-    State('theme-toggle', 'value'),
-    prevent_initial_call='initial_duplicate'
-)
-def load_initial_dashboard(container_id, theme_value):
-    # Default filters: All Day, All Months, All Cities
-    time_filter = 'All Day'
-    selected_month = 'All Months'
-    selected_city = 'All Cities'
-
-    # Handle theme
-    theme = 'dark' if 'dark' in theme_value else 'light'
-    theme_colors = dark_theme if theme == 'dark' else light_theme
-
-    # Filter data with defaults
-    filtered_df = df.copy()
-
-    # Apply month filter (All = no filter)
-    if selected_month != 'All Months':
-        filtered_df = filtered_df[filtered_df['Month_Name'] == selected_month]
-
-    # Apply city filter (All = no filter)
-    if selected_city != 'All Cities':
-        filtered_df = filtered_df[filtered_df['City'] == selected_city]
-
-    # Apply time filter (All Day = no filter)
-    if time_filter != 'All Day':
-        filtered_df = filtered_df[filtered_df['Time_Period'] == time_filter]
-
-    # Create charts using enhanced functions
-    bar_chart = create_vehicle_chart(filtered_df, time_filter, selected_month, selected_city, theme_colors)
-
-    # For monthly chart, use different filtering
-    monthly_df = df.copy()
-    if time_filter != 'All Day':
-        monthly_df = monthly_df[monthly_df['Time_Period'] == time_filter]
-    monthly_chart = create_monthly_chart(monthly_df, time_filter, selected_city, theme_colors)
-
-    hourly_chart = create_hourly_chart(filtered_df, time_filter, selected_month, selected_city, theme_colors)
-
-    # Update Map
-    map_data = filtered_df.dropna(subset=['Latitude', 'Longitude'])
-    updated_map = generate_folium_map(map_data, 'light')
-    buffer = BytesIO()
-    updated_map.save(buffer, close_file=False)
-    map_html = buffer.getvalue().decode("utf-8")
-
-    # Hide loading overlay after initial load
-    loading_style = {'display': 'none'}
-
-    return bar_chart, monthly_chart, hourly_chart, map_html, loading_style
-
 # Main callback for theme toggle (immediate)
 @app.callback(
     [Output('main-container', 'className'),
      Output('theme-store', 'data')],
-    Input('theme-toggle', 'value')
+    [Input('theme-toggle', 'value')]
 )
 def update_theme(theme_value):
     theme = 'dark' if 'dark' in theme_value else 'light'
@@ -568,16 +510,17 @@ def update_theme(theme_value):
 
 # Callback for updating graphs when theme changes (immediate theme change)
 @app.callback(
-    [Output('vehicle-bar-chart', 'figure', allow_duplicate=True),
-     Output('monthly-accidents-chart', 'figure', allow_duplicate=True),
-     Output('hourly-accidents-chart', 'figure', allow_duplicate=True)],
-    [Input('theme-store', 'data')],
+    [Output('vehicle-bar-chart', 'figure'),
+     Output('monthly-accidents-chart', 'figure'),
+     Output('hourly-accidents-chart', 'figure')],
+    [Input('theme-store', 'data'),
+     Input('apply-filters-btn', 'n_clicks')],
     [State('selected-time-store', 'data'),
      State('month-dropdown', 'value'),
      State('city-dropdown', 'value')],
-    prevent_initial_call=True
+    prevent_initial_call=False
 )
-def update_graphs_theme(theme, time_filter, selected_month, selected_city):
+def update_graphs(theme, apply_clicks, time_filter, selected_month, selected_city):
     theme_colors = dark_theme if theme == 'dark' else light_theme
 
     # Use current filter values or defaults
@@ -621,7 +564,7 @@ def update_graphs_theme(theme, time_filter, selected_month, selected_city):
 # Callback for showing/hiding loading overlay
 @app.callback(
     Output('loading-overlay', 'style'),
-    Input('apply-filters-btn', 'n_clicks'),
+    [Input('apply-filters-btn', 'n_clicks')],
     prevent_initial_call=True
 )
 def show_loading(n_clicks):
@@ -629,27 +572,20 @@ def show_loading(n_clicks):
         return {'display': 'flex'}
     return {'display': 'none'}
 
-# Main callback for updating content (triggered by Apply Filters button)
+# Separate callback for updating map
 @app.callback(
-    [Output('vehicle-bar-chart', 'figure', allow_duplicate=True),
-     Output('monthly-accidents-chart', 'figure', allow_duplicate=True),
-     Output('hourly-accidents-chart', 'figure', allow_duplicate=True),
-     Output('leaflet-map', 'srcDoc', allow_duplicate=True),
-     Output('loading-overlay', 'style', allow_duplicate=True)],
-    Input('apply-filters-btn', 'n_clicks'),
+    Output('leaflet-map', 'srcDoc'),
+    [Input('apply-filters-btn', 'n_clicks')],
     [State('selected-time-store', 'data'),
      State('month-dropdown', 'value'),
      State('city-dropdown', 'value'),
      State('theme-store', 'data')],
     prevent_initial_call=True
 )
-def update_dashboard_content(apply_clicks, time_filter, selected_month, selected_city, theme):
+def update_map(apply_clicks, time_filter, selected_month, selected_city, theme):
     # Use stored time filter or default
     if not time_filter:
         time_filter = 'All Day'
-
-    # Handle theme
-    theme_colors = dark_theme if theme == 'dark' else light_theme
 
     # Filter data
     filtered_df = df.copy()
@@ -666,30 +602,14 @@ def update_dashboard_content(apply_clicks, time_filter, selected_month, selected
     if time_filter != 'All Day':
         filtered_df = filtered_df[filtered_df['Time_Period'] == time_filter]
 
-    # Create charts using enhanced functions
-    bar_chart = create_vehicle_chart(filtered_df, time_filter, selected_month, selected_city, theme_colors)
-
-    # For monthly chart, use different filtering (filtered by time and city only)
-    monthly_df = df.copy()
-    if time_filter != 'All Day':
-        monthly_df = monthly_df[monthly_df['Time_Period'] == time_filter]
-    if selected_city and selected_city != 'All Cities':
-        monthly_df = monthly_df[monthly_df['City'] == selected_city]
-    monthly_chart = create_monthly_chart(monthly_df, time_filter, selected_city, theme_colors)
-
-    hourly_chart = create_hourly_chart(filtered_df, time_filter, selected_month, selected_city, theme_colors)
-
-    # Update Map (always use light theme)
+    # Update Map (always use light theme for now)
     map_data = filtered_df.dropna(subset=['Latitude', 'Longitude'])
-    updated_map = generate_folium_map(map_data, 'light')  # Force light theme for map
+    updated_map = generate_folium_map(map_data, 'light')
     buffer = BytesIO()
     updated_map.save(buffer, close_file=False)
     map_html = buffer.getvalue().decode("utf-8")
 
-    # Hide loading overlay
-    loading_style = {'display': 'none'}
-
-    return bar_chart, monthly_chart, hourly_chart, map_html, loading_style
+    return map_html
 
 # Custom CSS
 app.index_string = '''
