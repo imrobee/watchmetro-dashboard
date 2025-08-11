@@ -405,7 +405,9 @@ def create_vehicle_chart(filtered_df, time_filter, selected_month, selected_city
         y=vehicle_counts_filtered.index,
         orientation='h',
         title=f"Vehicles Involved in Accidents<br>({time_filter}, {selected_month}, {selected_city})",
-        labels={'x': 'Number of Accidents', 'y': 'Vehicle Type'}
+        labels={'x': 'Number of Accidents', 'y': 'Vehicle Type'},
+        color=vehicle_counts_filtered.index,
+        color_discrete_sequence=px.colors.qualitative.G10
     )
     bar_chart.update_layout(
         plot_bgcolor=theme_colors['plot_bg'],
@@ -996,4 +998,4 @@ app.index_string = '''
 '''
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(debug=False)
