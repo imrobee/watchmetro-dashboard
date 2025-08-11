@@ -146,6 +146,108 @@ def get_time_range(time_period):
     else:  # All Day
         return list(range(24))
 
+# Helper function to generate all charts
+def generate_all_charts(filtered_df, theme, time_filter, selected_month, selected_city):
+    theme_colors = dark_theme if theme == 'dark' else light_theme
+    
+    # 1. Vehicle Horizontal Bar Chart
+    vehicles_series = filtered_df['Involved'].str.split(r"\s+AND\s+|\s*,\s*").explode()
+    vehicles_series = vehicles_series.apply(clean_vehicle_name)
+    vehicles_series = vehicles_series.dropna()
+    vehicle_counts = vehicles_series.value_counts()
+
+    if len(vehicle_counts) > 0:
+        percentages = vehicle_counts / vehicle_counts.sum()
+        vehicle_counts_filtered = vehicle_counts[percentages >= 0.02].copy()
+        others_count = vehicle_counts[percentages < 0.02].sum()
+        if others_count > 0:
+            vehicle_counts_filtered['OTHERS'] = others_count
+    else:
+        vehicle_counts_filtered = pd.Series()
+
+    bar_chart = px.bar(
+        x=vehicle_counts_filtered.values,
+        y=vehicle_counts_filtered.index,
+        orientation='h',
+        title=f"Vehicles Involved in Accidents<br>({time_filter}, {selected_month}, {selected_city})",
+        labels={'x': 'Number of Accidents', 'y': 'Vehicle Type'}
+    )
+    bar_chart.update_layout(
+        plot_bgcolor=theme_colors['plot_bg'],
+        paper_bgcolor=theme_colors['paper_bg'],
+        font_color=theme_colors['text'],
+        height=400,
+        yaxis={'categoryorder': 'total ascending'}
+    )
+
+    # 2. Monthly Accidents
+    monthly_df = df.copy()
+    if time_filter != 'All Day':
+        monthly_df = monthly_df[monthly_df['Time_Period'] == time_filter]
+    if selected_city != 'All Cities':
+        monthly_df = monthly_df[monthly_df['City'] == selected_city]
+
+    month_counts = monthly_df['Month_Name'].value_counts().reindex(month_options, fill_value=0)
+
+    monthly_chart = px.bar(
+        x=month_counts.index,
+        y=month_counts.values,
+        title=f"Total Accidents per Month ({time_filter}, {selected_city})",
+        labels={'x': 'Month', 'y': 'Number of Accidents'}
+    )
+    monthly_chart.update_layout(
+        plot_bgcolor=theme_colors['plot_bg'],
+        paper_bgcolor=theme_colors['paper_bg'],
+        font_color=theme_colors['text'],
+        xaxis_tickangle=-45
+    )
+
+    # 3. Hourly Accidents
+    time_range = get_time_range(time_filter)
+    hourly_counts = filtered_df['Hour'].dropna().value_counts().sort_index()
+
+    hour_labels = []
+    hour_values = []
+    for hour in time_range:
+        count = hourly_counts.get(hour, 0)
+        hour_values.append(count)
+
+        if hour == 0:
+            label = "12:00 AM"
+        elif hour < 12:
+            label = f"{hour}:00 AM"
+        elif hour == 12:
+            label = "12:00 PM"
+        else:
+            label = f"{hour-12}:00 PM"
+
+        hour_labels.append(label)
+
+    # Use brighter blue for dark theme
+    line_color = '#5DADE2' if theme == 'dark' else '#2c3e50'
+
+    hourly_chart = go.Figure()
+    hourly_chart.add_trace(go.Scatter(
+        x=hour_labels,
+        y=hour_values,
+        mode='lines+markers',
+        name='Accidents',
+        line=dict(color=line_color, width=2),
+        marker=dict(size=6)
+    ))
+
+    hourly_chart.update_layout(
+        title=f"Accidents by Hour of Day<br>({time_filter}, {selected_month}, {selected_city})",
+        xaxis_title="Hour of Day",
+        yaxis_title="Number of Accidents",
+        plot_bgcolor=theme_colors['plot_bg'],
+        paper_bgcolor=theme_colors['paper_bg'],
+        font_color=theme_colors['text'],
+        xaxis=dict(tickangle=-45)
+    )
+
+    return bar_chart, monthly_chart, hourly_chart
+
 # Create initial map
 initial_data = df.dropna(subset=['Latitude', 'Longitude'])
 initial_map = generate_folium_map(initial_data, 'light')
@@ -222,7 +324,7 @@ app.layout = html.Div([
         ], className='card', style={'flex': '1'}),
 
         html.Div([
-            html.Label("‎", className='label'), # Invisible char bcs I get OCD when it's not there
+            html.Label("‎", className='label'), # Invisible char
             html.Button("Apply Filters",
                        id='apply-filters-btn',
                        n_clicks=0,
@@ -255,11 +357,11 @@ app.layout = html.Div([
             html.Div(className='spinner'),
             html.H3("Loading Dashboard...", style={'color': 'white', 'marginTop': '20px', 'textAlign': 'center'})
         ], className='loading-content')
-    ], id='loading-overlay', className='loading-overlay', style={'display': 'flex'}),
+    ], id='loading-overlay', className='loading-overlay', style={'display': 'none'}),
 
     # Store current theme state and selected time period
-    dcc.Store(id='theme-store', data='light'), # initially light mode
-    dcc.Store(id='selected-time-store', data='All Day'), # store selected time period
+    dcc.Store(id='theme-store', data='light'),
+    dcc.Store(id='selected-time-store', data='All Day'),
 
     # Footer
     html.Div([
@@ -303,7 +405,7 @@ app.layout = html.Div([
 
 ], id='main-container', className='light-theme')
 
-# Callback for immediate time button visual feedback and store selection
+# CALLBACK 1: Handle time button clicks and store selection
 @app.callback(
     [Output({'type': 'time-btn', 'index': ALL}, 'className'),
      Output('selected-time-store', 'data')],
@@ -312,170 +414,24 @@ app.layout = html.Div([
     prevent_initial_call=True
 )
 def update_time_button_styles(time_clicks, time_ids):
-    # Find the most recently clicked button
     ctx = callback_context
     time_filter = 'All Day'  # default
 
-    # Check if any button was clicked
     if ctx.triggered and ctx.triggered[0]['value'] > 0:
-        # Get the ID of the triggered button
-        triggered_id = ctx.triggered[0]['prop_id']
-        # Extract the button index from the prop_id
         import json
+        triggered_id = ctx.triggered[0]['prop_id']
         button_id = json.loads(triggered_id.split('.')[0])
         time_filter = button_id['index']
     else:
-        # Fallback to max clicks logic
         max_clicks = max(time_clicks) if time_clicks else 0
         if max_clicks > 0:
             max_index = time_clicks.index(max_clicks)
             time_filter = time_ids[max_index]['index']
 
-    # Return button classes and store the selected time
     button_classes = ['button active' if id['index'] == time_filter else 'button' for id in time_ids]
     return button_classes, time_filter
 
-# Callback for initial dashboard load with default filters
-@app.callback(
-    [Output('vehicle-bar-chart', 'figure', allow_duplicate=True),
-     Output('monthly-accidents-chart', 'figure', allow_duplicate=True),
-     Output('hourly-accidents-chart', 'figure', allow_duplicate=True),
-     Output('leaflet-map', 'srcDoc', allow_duplicate=True),
-     Output('loading-overlay', 'style', allow_duplicate=True)],
-    Input('main-container', 'id'),  # Triggers on page load
-    State('theme-toggle', 'value'),
-    prevent_initial_call='initial_duplicate'
-)
-def load_initial_dashboard(container_id, theme_value):
-    # Default filters: All Day, All Months, All Cities
-    time_filter = 'All Day'
-    selected_month = 'All Months'
-    selected_city = 'All Cities'
-
-    # Handle theme
-    theme = 'dark' if 'dark' in theme_value else 'light'
-    theme_colors = dark_theme if theme == 'dark' else light_theme
-
-    # Filter data with defaults
-    filtered_df = df.copy()
-
-    # Apply month filter (All = no filter)
-    if selected_month != 'All Months':
-        filtered_df = filtered_df[filtered_df['Month_Name'] == selected_month]
-
-    # Apply city filter (All = no filter)
-    if selected_city != 'All Cities':
-        filtered_df = filtered_df[filtered_df['City'] == selected_city]
-
-    # Apply time filter (All Day = no filter)
-    if time_filter != 'All Day':
-        filtered_df = filtered_df[filtered_df['Time_Period'] == time_filter]
-
-    # 1. Vehicle Horizontal Bar Chart
-    vehicles_series = filtered_df['Involved'].str.split(r"\s+AND\s+|\s*,\s*").explode()
-    vehicles_series = vehicles_series.apply(clean_vehicle_name)
-    vehicles_series = vehicles_series.dropna()
-    vehicle_counts = vehicles_series.value_counts()
-
-    percentages = vehicle_counts / vehicle_counts.sum()
-    vehicle_counts_filtered = vehicle_counts[percentages >= 0.02].copy()
-    others_count = vehicle_counts[percentages < 0.02].sum()
-    if others_count > 0:
-        vehicle_counts_filtered['OTHERS'] = others_count
-
-    # Create horizontal bar chart
-    bar_chart = px.bar(
-        x=vehicle_counts_filtered.values,
-        y=vehicle_counts_filtered.index,
-        orientation='h',
-        title=f"Vehicles Involved in Accidents<br>({time_filter}, {selected_month}, {selected_city})",
-        labels={'x': 'Number of Accidents', 'y': 'Vehicle Type'}
-    )
-    bar_chart.update_layout(
-        plot_bgcolor=theme_colors['plot_bg'],
-        paper_bgcolor=theme_colors['paper_bg'],
-        font_color=theme_colors['text'],
-        height=400,
-        yaxis={'categoryorder': 'total ascending'}
-    )
-
-    # 2. Monthly Accidents
-    monthly_df = df.copy()
-    if time_filter != 'All Day':
-        monthly_df = monthly_df[monthly_df['Time_Period'] == time_filter]
-
-    month_counts = monthly_df['Month_Name'].value_counts().reindex(month_options)
-
-    monthly_chart = px.bar(
-        x=month_counts.index,
-        y=month_counts.values,
-        title=f"Total Accidents per Month ({time_filter}, {selected_city})",
-        labels={'x': 'Month', 'y': 'Number of Accidents'}
-    )
-    monthly_chart.update_layout(
-        plot_bgcolor=theme_colors['plot_bg'],
-        paper_bgcolor=theme_colors['paper_bg'],
-        font_color=theme_colors['text'],
-        xaxis_tickangle=-45
-    )
-
-    # 3. Hourly Accidents (filtered by time period)
-    time_range = get_time_range(time_filter)
-    hourly_counts = filtered_df['Hour'].dropna().value_counts().sort_index()
-
-    hour_labels = []
-    hour_values = []
-    for hour in time_range:
-        count = hourly_counts.get(hour, 0)
-        hour_values.append(count)
-
-        if hour == 0:
-            label = "12:00 AM"
-        elif hour < 12:
-            label = f"{hour}:00 AM"
-        elif hour == 12:
-            label = "12:00 PM"
-        else:
-            label = f"{hour-12}:00 PM"
-
-        hour_labels.append(label)
-
-    # Use brighter blue for dark theme
-    line_color = '#5DADE2' if theme == 'dark' else '#2c3e50'
-
-    hourly_chart = go.Figure()
-    hourly_chart.add_trace(go.Scatter(
-        x=hour_labels,
-        y=hour_values,
-        mode='lines+markers',
-        name='Accidents',
-        line=dict(color=line_color, width=2),
-        marker=dict(size=6)
-    ))
-
-    hourly_chart.update_layout(
-        title=f"Accidents by Hour of Day<br>({time_filter}, {selected_month}, {selected_city})",
-        xaxis_title="Hour of Day",
-        yaxis_title="Number of Accidents",
-        plot_bgcolor=theme_colors['plot_bg'],
-        paper_bgcolor=theme_colors['paper_bg'],
-        font_color=theme_colors['text'],
-        xaxis=dict(tickangle=-45)
-    )
-
-    # 4. Update Map
-    map_data = filtered_df.dropna(subset=['Latitude', 'Longitude'])
-    updated_map = generate_folium_map(map_data, 'light')
-    buffer = BytesIO()
-    updated_map.save(buffer, close_file=False)
-    map_html = buffer.getvalue().decode("utf-8")
-
-    # Hide loading overlay after initial load
-    loading_style = {'display': 'none'}
-
-    return bar_chart, monthly_chart, hourly_chart, map_html, loading_style
-
-# Main callback for theme toggle (immediate)
+# CALLBACK 2: Handle theme toggle
 @app.callback(
     [Output('main-container', 'className'),
      Output('theme-store', 'data')],
@@ -485,139 +441,7 @@ def update_theme(theme_value):
     theme = 'dark' if 'dark' in theme_value else 'light'
     return f'{theme}-theme', theme
 
-# Callback for updating graphs when theme changes (immediate theme change)
-@app.callback(
-    [Output('vehicle-bar-chart', 'figure', allow_duplicate=True),
-     Output('monthly-accidents-chart', 'figure', allow_duplicate=True),
-     Output('hourly-accidents-chart', 'figure', allow_duplicate=True)],
-    [Input('theme-store', 'data')],
-    [State('selected-time-store', 'data'),
-     State('month-dropdown', 'value'),
-     State('city-dropdown', 'value')],
-    prevent_initial_call=True
-)
-def update_graphs_theme(theme, time_filter, selected_month, selected_city):
-    theme_colors = dark_theme if theme == 'dark' else light_theme
-
-    # Use current filter values or defaults
-    if not time_filter:
-        time_filter = 'All Day'
-    if not selected_month:
-        selected_month = 'All Months'
-    if not selected_city:
-        selected_city = 'All Cities'
-
-    # Filter data
-    filtered_df = df.copy()
-
-    # Apply month filter
-    if selected_month != 'All Months':
-        filtered_df = filtered_df[filtered_df['Month_Name'] == selected_month]
-
-    # Apply city filter
-    if selected_city != 'All Cities':
-        filtered_df = filtered_df[filtered_df['City'] == selected_city]
-
-    # Apply time filter
-    if time_filter != 'All Day':
-        filtered_df = filtered_df[filtered_df['Time_Period'] == time_filter]
-
-    # 1. Vehicle Horizontal Bar Chart
-    vehicles_series = filtered_df['Involved'].str.split(r"\s+AND\s+|\s*,\s*").explode()
-    vehicles_series = vehicles_series.apply(clean_vehicle_name)
-    vehicles_series = vehicles_series.dropna()
-    vehicle_counts = vehicles_series.value_counts()
-
-    percentages = vehicle_counts / vehicle_counts.sum()
-    vehicle_counts_filtered = vehicle_counts[percentages >= 0.02].copy()
-    others_count = vehicle_counts[percentages < 0.02].sum()
-    if others_count > 0:
-        vehicle_counts_filtered['OTHERS'] = others_count
-
-    bar_chart = px.bar(
-        x=vehicle_counts_filtered.values,
-        y=vehicle_counts_filtered.index,
-        orientation='h',
-        title=f"Vehicles Involved in Accidents<br>({time_filter}, {selected_month}, {selected_city})",
-        labels={'x': 'Number of Accidents', 'y': 'Vehicle Type'}
-    )
-    bar_chart.update_layout(
-        plot_bgcolor=theme_colors['plot_bg'],
-        paper_bgcolor=theme_colors['paper_bg'],
-        font_color=theme_colors['text'],
-        height=400,
-        yaxis={'categoryorder': 'total ascending'}
-    )
-
-    # 2. Monthly Accidents
-    monthly_df = df.copy()
-    if time_filter != 'All Day':
-        monthly_df = monthly_df[monthly_df['Time_Period'] == time_filter]
-    if selected_city != 'All Cities':
-        monthly_df = monthly_df[monthly_df['City'] == selected_city]
-
-    month_counts = monthly_df['Month_Name'].value_counts().reindex(month_options)
-
-    monthly_chart = px.bar(
-        x=month_counts.index,
-        y=month_counts.values,
-        title=f"Total Accidents per Month ({time_filter}, {selected_city})",
-        labels={'x': 'Month', 'y': 'Number of Accidents'}
-    )
-    monthly_chart.update_layout(
-        plot_bgcolor=theme_colors['plot_bg'],
-        paper_bgcolor=theme_colors['paper_bg'],
-        font_color=theme_colors['text'],
-        xaxis_tickangle=-45
-    )
-
-    # 3. Hourly Accidents
-    time_range = get_time_range(time_filter)
-    hourly_counts = filtered_df['Hour'].dropna().value_counts().sort_index()
-
-    hour_labels = []
-    hour_values = []
-    for hour in time_range:
-        count = hourly_counts.get(hour, 0)
-        hour_values.append(count)
-
-        if hour == 0:
-            label = "12:00 AM"
-        elif hour < 12:
-            label = f"{hour}:00 AM"
-        elif hour == 12:
-            label = "12:00 PM"
-        else:
-            label = f"{hour-12}:00 PM"
-
-        hour_labels.append(label)
-
-    # Use brighter blue for dark theme
-    line_color = '#5DADE2' if theme == 'dark' else '#2c3e50'
-
-    hourly_chart = go.Figure()
-    hourly_chart.add_trace(go.Scatter(
-        x=hour_labels,
-        y=hour_values,
-        mode='lines+markers',
-        name='Accidents',
-        line=dict(color=line_color, width=2),
-        marker=dict(size=6)
-    ))
-
-    hourly_chart.update_layout(
-        title=f"Accidents by Hour of Day<br>({time_filter}, {selected_month}, {selected_city})",
-        xaxis_title="Hour of Day",
-        yaxis_title="Number of Accidents",
-        plot_bgcolor=theme_colors['plot_bg'],
-        paper_bgcolor=theme_colors['paper_bg'],
-        font_color=theme_colors['text'],
-        xaxis=dict(tickangle=-45)
-    )
-
-    return bar_chart, monthly_chart, hourly_chart
-
-# Callback for showing/hiding loading overlay
+# CALLBACK 3: Show loading when Apply Filters is clicked
 @app.callback(
     Output('loading-overlay', 'style'),
     Input('apply-filters-btn', 'n_clicks'),
@@ -628,142 +452,59 @@ def show_loading(n_clicks):
         return {'display': 'flex'}
     return {'display': 'none'}
 
-# Main callback for updating content (triggered by Apply Filters button)
+# CALLBACK 4: Main consolidated callback for all content updates
 @app.callback(
-    [Output('vehicle-bar-chart', 'figure', allow_duplicate=True),
-     Output('monthly-accidents-chart', 'figure', allow_duplicate=True),
-     Output('hourly-accidents-chart', 'figure', allow_duplicate=True),
-     Output('leaflet-map', 'srcDoc', allow_duplicate=True),
+    [Output('vehicle-bar-chart', 'figure'),
+     Output('monthly-accidents-chart', 'figure'),
+     Output('hourly-accidents-chart', 'figure'),
+     Output('leaflet-map', 'srcDoc'),
      Output('loading-overlay', 'style', allow_duplicate=True)],
-    Input('apply-filters-btn', 'n_clicks'),
+    [Input('apply-filters-btn', 'n_clicks'),
+     Input('theme-store', 'data'),
+     Input('main-container', 'id')],  # For initial load
     [State('selected-time-store', 'data'),
      State('month-dropdown', 'value'),
-     State('city-dropdown', 'value'),
-     State('theme-store', 'data')],
-    prevent_initial_call=True
+     State('city-dropdown', 'value')],
+    prevent_initial_call=False
 )
-def update_dashboard_content(apply_clicks, time_filter, selected_month, selected_city, theme):
-    # Use stored time filter or default
+def update_all_dashboard_content(apply_clicks, theme, container_id, time_filter, selected_month, selected_city):
+    ctx = callback_context
+    trigger_id = ctx.triggered[0]['prop_id'] if ctx.triggered else 'main-container.id'
+    
+    # Use defaults if not set
     if not time_filter:
         time_filter = 'All Day'
-
-    # Handle theme
-    theme_colors = dark_theme if theme == 'dark' else light_theme
+    if not selected_month:
+        selected_month = 'All Months'
+    if not selected_city:
+        selected_city = 'All Cities'
+    if not theme:
+        theme = 'light'
 
     # Filter data
     filtered_df = df.copy()
 
     # Apply month filter
-    if selected_month and selected_month != 'All Months':
+    if selected_month != 'All Months':
         filtered_df = filtered_df[filtered_df['Month_Name'] == selected_month]
 
     # Apply city filter
-    if selected_city and selected_city != 'All Cities':
+    if selected_city != 'All Cities':
         filtered_df = filtered_df[filtered_df['City'] == selected_city]
 
     # Apply time filter
     if time_filter != 'All Day':
         filtered_df = filtered_df[filtered_df['Time_Period'] == time_filter]
 
-    # 1. Vehicle Horizontal Bar Chart (filtered by time and month)
-    vehicles_series = filtered_df['Involved'].str.split(r"\s+AND\s+|\s*,\s*").explode()
-    vehicles_series = vehicles_series.apply(clean_vehicle_name)
-    vehicles_series = vehicles_series.dropna()
-    vehicle_counts = vehicles_series.value_counts()
-
-    # Filter ≥2%, merge rest into OTHERS
-    percentages = vehicle_counts / vehicle_counts.sum()
-    vehicle_counts_filtered = vehicle_counts[percentages >= 0.02].copy()
-    others_count = vehicle_counts[percentages < 0.02].sum()
-    if others_count > 0:
-        vehicle_counts_filtered['OTHERS'] = others_count
-
-    bar_chart = px.bar(
-        x=vehicle_counts_filtered.values,
-        y=vehicle_counts_filtered.index,
-        orientation='h',
-        title=f"Vehicles Involved in Accidents<br>({time_filter}, {selected_month}, {selected_city})",
-        labels={'x': 'Number of Accidents', 'y': 'Vehicle Type'}
-    )
-    bar_chart.update_layout(
-        plot_bgcolor=theme_colors['plot_bg'],
-        paper_bgcolor=theme_colors['paper_bg'],
-        font_color=theme_colors['text'],
-        height=400,
-        yaxis={'categoryorder': 'total ascending'}
+    # Generate all charts
+    bar_chart, monthly_chart, hourly_chart = generate_all_charts(
+        filtered_df, theme, time_filter, selected_month, selected_city
     )
 
-    # 2. Monthly Accidents (filtered by time and city only)
-    monthly_df = df.copy()
-    if time_filter != 'All Day':
-        monthly_df = monthly_df[monthly_df['Time_Period'] == time_filter]
-    if selected_city and selected_city != 'All Cities':
-        monthly_df = monthly_df[monthly_df['City'] == selected_city]
-
-    month_counts = monthly_df['Month_Name'].value_counts().reindex(month_options)
-
-    monthly_chart = px.bar(
-        x=month_counts.index,
-        y=month_counts.values,
-        title=f"Total Accidents per Month ({time_filter}, {selected_city})",
-        labels={'x': 'Month', 'y': 'Number of Accidents'}
-    )
-    monthly_chart.update_layout(
-        plot_bgcolor=theme_colors['plot_bg'],
-        paper_bgcolor=theme_colors['paper_bg'],
-        font_color=theme_colors['text'],
-        xaxis_tickangle=-45
-    )
-
-    # 3. Hourly Accidents (filtered by time period and showing only relevant hours)
-    time_range = get_time_range(time_filter)
-    hourly_counts = filtered_df['Hour'].dropna().value_counts().sort_index()
-
-    # Create hour labels in 12-hour format for the selected time range
-    hour_labels = []
-    hour_values = []
-    for hour in time_range:
-        count = hourly_counts.get(hour, 0)
-        hour_values.append(count)
-
-        # Convert to 12-hour format
-        if hour == 0:
-            label = "12:00 AM"
-        elif hour < 12:
-            label = f"{hour}:00 AM"
-        elif hour == 12:
-            label = "12:00 PM"
-        else:
-            label = f"{hour-12}:00 PM"
-
-        hour_labels.append(label)
-
-    # Use brighter blue for dark theme
-    line_color = '#5DADE2' if theme == 'dark' else '#2c3e50'
-
-    hourly_chart = go.Figure()
-    hourly_chart.add_trace(go.Scatter(
-        x=hour_labels,
-        y=hour_values,
-        mode='lines+markers',
-        name='Accidents',
-        line=dict(color=line_color, width=2),
-        marker=dict(size=6)
-    ))
-
-    hourly_chart.update_layout(
-        title=f"Accidents by Hour of Day<br>({time_filter}, {selected_month}, {selected_city})",
-        xaxis_title="Hour of Day",
-        yaxis_title="Number of Accidents",
-        plot_bgcolor=theme_colors['plot_bg'],
-        paper_bgcolor=theme_colors['paper_bg'],
-        font_color=theme_colors['text'],
-        xaxis=dict(tickangle=-45)
-    )
-
-    # 4. Update Map (always use light theme)
+    # Update Map
     map_data = filtered_df.dropna(subset=['Latitude', 'Longitude'])
-    updated_map = generate_folium_map(map_data, 'light')  # Force light theme for map
+    map_theme = theme if 'apply-filters-btn' in trigger_id else 'light'  # Use theme for map only when filters applied
+    updated_map = generate_folium_map(map_data, map_theme)
     buffer = BytesIO()
     updated_map.save(buffer, close_file=False)
     map_html = buffer.getvalue().decode("utf-8")
@@ -833,7 +574,6 @@ app.index_string = '''
                 border-radius: 50%;
             }
 
-            /* Fixed toggle slider - using more specific selectors */
             .toggle-checklist input[type="checkbox"]:checked + label {
                 background-color: #2c3e50 !important;
             }
@@ -842,7 +582,6 @@ app.index_string = '''
                 transform: translateX(26px) !important;
             }
 
-            /* Alternative approach using has() selector for modern browsers */
             .toggle-checklist label:has(input:checked) {
                 background-color: #2c3e50 !important;
             }
@@ -944,7 +683,6 @@ app.index_string = '''
                 font-size: 14px;
             }
 
-            /* Fixed: dropdown labels turn white in dark mode */
             .dark-theme .label {
                 color: white !important;
             }
@@ -1015,7 +753,6 @@ app.index_string = '''
                 background-clip: text;
             }
 
-            /* Enhanced dropdown styling for dark theme */
             .dark-theme .Select-control,
             .dark-theme .Select-single-value,
             .dark-theme .Select-input {
@@ -1046,7 +783,6 @@ app.index_string = '''
                 border-color: transparent transparent white transparent !important;
             }
 
-            /* Additional dropdown styling for better dark theme support */
             .dark-theme .dash-dropdown .Select-control {
                 background-color: #2c2c2c !important;
                 border: 1px solid #555 !important;
