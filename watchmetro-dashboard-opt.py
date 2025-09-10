@@ -359,6 +359,7 @@ def update_time_buttons(clicks, ids):
 @app.callback(
     Output("theme-toggle", "children"),
     Output("main-container", "className"),
+    Output("theme-store", "data"),
     Input("theme-toggle", "n_clicks"),
     State("theme-toggle", "children")
 )
