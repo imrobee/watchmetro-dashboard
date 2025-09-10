@@ -536,6 +536,8 @@ body { margin: 0; font-family: Arial, sans-serif; }
 </html>
 '''
 
+server = app.server
+
 if __name__ == '__main__':
     # Production optimizations
     app.run(debug=False, dev_tools_ui=False, dev_tools_props_check=False)
