@@ -161,12 +161,12 @@ def generate_folium_map(data, theme='light', max_markers=500):
     return m
 
 def get_time_range(time_period):
-    """Get time range for filtering"""
+    """Get time range for filtering (excludes -1 which represents missing data)"""
     ranges = {
         'Morning': list(range(6, 12)),
         'Afternoon': list(range(12, 18)),
         'Evening': list(range(18, 24)) + list(range(0, 6)),
-        'All Day': list(range(24))
+        'All Day': list(range(24))  # 0-23, excludes -1
     }
     return ranges.get(time_period, list(range(24)))
 
