@@ -17,7 +17,6 @@ import json
 from dash.dependencies import ALL
 import gc
 import os
-import dash_daq as daq
 
 
 # Memory optimization: Load data more efficiently
@@ -210,10 +209,17 @@ app.layout = html.Div([
         html.Div([
             html.Div([
                 html.Span("☀️", style={'fontSize': '20px', 'marginRight': '8px'}),
-                daq.ToggleSwitch(
+                html.Button(
                     id="theme-toggle",
-                    value=False,   # False = light, True = dark
-                    color="#2c3e50"
+                    children="🌞",   # start in light mode
+                    n_clicks=0,
+                    style={
+                        "fontSize": "24px",
+                        "background": "none",
+                        "border": "none",
+                        "cursor": "pointer",
+                        "marginLeft": "10px"
+                    }
                 ),
                 html.Span("🌙", style={'fontSize': '20px', 'marginLeft': '8px'})
             ])
@@ -339,13 +345,20 @@ def update_time_buttons(clicks, ids):
     return styles, time_filter
 
 @app.callback(
-    [Output('main-container', 'className'), Output('theme-store', 'data')],
-    [Input('theme-toggle', 'value')]
+    Output("theme-toggle", "children"),
+    Output("page-content", "className"),
+    Input("theme-toggle", "n_clicks"),
+    State("theme-toggle", "children")
 )
-def update_theme(theme_value):
-    """Update theme"""
-    theme = 'dark' if 'dark' in theme_value else 'light'
-    return f'{theme}-theme', theme
+def toggle_theme(n_clicks, current_icon):
+    if n_clicks == 0:
+        # Initial load: light theme
+        return "🌞", "light-theme"
+
+    if current_icon == "🌞":
+        return "🌙", "dark-theme"
+    else:
+        return "🌞", "light-theme"
 
 def create_vehicle_chart(filtered_df, filters, theme_colors):
     """Create vehicle involvement chart with memory optimization"""
