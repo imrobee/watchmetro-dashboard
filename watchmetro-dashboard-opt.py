@@ -208,20 +208,27 @@ app.layout = html.Div([
         
         html.Div([
             html.Div([
-                html.Span("☀️", style={'fontSize': '20px', 'marginRight': '8px'}),
                 html.Button(
                     id="theme-toggle",
                     children="🌞",   # start in light mode
                     n_clicks=0,
                     style={
-                        "fontSize": "24px",
+                        "fontSize": "26px",
                         "background": "none",
                         "border": "none",
                         "cursor": "pointer",
-                        "marginLeft": "10px"
+                        "marginLeft": "10px",
+                        "transition": "transform 0.3s ease"
                     }
                 ),
-                html.Span("🌙", style={'fontSize': '20px', 'marginLeft': '8px'})
+                html.Style("""
+                    #theme-toggle:hover {
+                        transform: scale(1.2);
+                    }
+                    #theme-toggle:active {
+                        transform: scale(0.9);
+                    }
+                """)
             ])
         ])
     ], style={
