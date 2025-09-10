@@ -221,14 +221,19 @@ app.layout = html.Div([
                         "transition": "transform 0.3s ease"
                     }
                 ),
-                html.Style("""
+                dcc.Markdown(
+                    """
+                    <style>
                     #theme-toggle:hover {
                         transform: scale(1.2);
                     }
                     #theme-toggle:active {
                         transform: scale(0.9);
                     }
-                """)
+                    </style>
+                    """,
+                    dangerously_allow_html=True
+                )
             ])
         ])
     ], style={
