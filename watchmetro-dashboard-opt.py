@@ -40,8 +40,13 @@ def load_and_optimize_data():
         # Convert datetime columns efficiently
         df['Date_datetime'] = pd.to_datetime(df['Date_datetime'], errors='coerce')
         df['Time_datetime'] = pd.to_datetime(df['Time'], format='%I:%M %p', errors='coerce')
-        df['Hour'] = df['Time_datetime'].dt.hour.astype('int8')  # Use int8 for hour (0-23)
-        
+        df['Hour'] = (
+            df['Time_datetime']
+            .dt.hour
+            .fillna(-1)      # keep the app from crashing if NaT values exist
+            .astype('int16') # allows -1 placeholder
+        )
+                
         # Add Month_Name as category
         df['Month_Name'] = df['Date_datetime'].dt.month_name().astype('category')
         
