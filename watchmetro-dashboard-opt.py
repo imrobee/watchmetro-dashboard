@@ -37,18 +37,25 @@ def load_and_optimize_data():
         df = pd.read_csv('dataset_cleaned.csv', dtype=dtypes)
         print(f"Successfully loaded {len(df)} records from dataset_cleaned.csv")
         
-        # Convert datetime columns efficiently
-        df['Date_datetime'] = pd.to_datetime(df['Date_datetime'], errors='coerce')
-        df['Time_datetime'] = pd.to_datetime(df['Time'], format='%I:%M %p', errors='coerce')
-        df['Hour'] = (
-            df['Time_datetime']
-            .dt.hour
-            .fillna(-1)      # keep the app from crashing if NaT values exist
-            .astype('int16') # allows -1 placeholder
-        )
-                
-        # Add Month_Name as category
-        df['Month_Name'] = df['Date_datetime'].dt.month_name().astype('category')
+        # --- safe datetime parsing & integer conversion ---
+        # ensure Date_datetime exists (parse from 'Date' if needed)
+        if 'Date_datetime' not in df.columns:
+            df['Date_datetime'] = pd.to_datetime(df.get('Date', None), errors='coerce')
+        else:
+            df['Date_datetime'] = pd.to_datetime(df['Date_datetime'], errors='coerce')
+        
+        # parse Time to datetime (coerce invalid formats)
+        df['Time_datetime'] = pd.to_datetime(df.get('Time', None), format='%I:%M %p', errors='coerce')
+        
+        # Extract hour safely: replace infinities, fill NaN with -1, cast to int
+        df['Hour'] = df['Time_datetime'].dt.hour
+        df['Hour'] = df['Hour'].replace([np.inf, -np.inf], np.nan).fillna(-1).astype('int16')
+        
+        # Month name: fill missing with 'Unknown' to avoid NaN category issues
+        df['Month_Name'] = df['Date_datetime'].dt.month_name()
+        df['Month_Name'] = df['Month_Name'].fillna('Unknown').astype('category')
+        # -------------------------------------------------
+
         
         # Optimize string operations
         df['Involved'] = df['Involved'].astype(str).str.upper().str.replace(r"[^A-Z0-9\s,]", "", regex=True)
