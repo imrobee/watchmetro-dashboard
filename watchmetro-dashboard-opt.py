@@ -210,7 +210,7 @@ app.layout = html.Div([
             html.Div([
                 html.Button(
                     id="theme-toggle",
-                    children="🌞",   # start in light mode
+                    children="☀️",   # start in light mode
                     n_clicks=0,
                     style={
                         "fontSize": "26px",
@@ -360,12 +360,12 @@ def update_time_buttons(clicks, ids):
 def toggle_theme(n_clicks, current_icon):
     if n_clicks == 0:
         # Initial load: light theme
-        return "🌞", "light-theme"
+        return "☀️", "light-theme"
 
-    if current_icon == "🌞":
+    if current_icon == "☀️":
         return "🌙", "dark-theme"
     else:
-        return "🌞", "light-theme"
+        return "☀️", "light-theme"
 
 def create_vehicle_chart(filtered_df, filters, theme_colors):
     """Create vehicle involvement chart with memory optimization"""
