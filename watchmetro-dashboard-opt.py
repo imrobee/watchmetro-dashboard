@@ -17,6 +17,8 @@ import json
 from dash.dependencies import ALL
 import gc
 import os
+import dash_daq as daq
+
 
 # Memory optimization: Load data more efficiently
 def load_and_optimize_data():
@@ -208,11 +210,10 @@ app.layout = html.Div([
         html.Div([
             html.Div([
                 html.Span("☀️", style={'fontSize': '20px', 'marginRight': '8px'}),
-                dcc.Checklist(
-                    id='theme-toggle',
-                    options=[{'label': '', 'value': 'dark'}],
-                    value=[],
-                    style={'display': 'inline-block'}
+                daq.ToggleSwitch(
+                    id="theme-toggle",
+                    value=False,   # False = light, True = dark
+                    color="#2c3e50"
                 ),
                 html.Span("🌙", style={'fontSize': '20px', 'marginLeft': '8px'})
             ])
