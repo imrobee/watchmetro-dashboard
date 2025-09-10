@@ -35,6 +35,7 @@ def load_and_optimize_data():
     
     try:
         df = pd.read_csv('dataset_cleaned.csv', dtype=dtypes)
+        print(f"Successfully loaded {len(df)} records from dataset_cleaned.csv")
         
         # Convert datetime columns efficiently
         df['Date_datetime'] = pd.to_datetime(df['Date_datetime'], errors='coerce')
@@ -48,22 +49,12 @@ def load_and_optimize_data():
         df['Involved'] = df['Involved'].astype(str).str.upper().str.replace(r"[^A-Z0-9\s,]", "", regex=True)
         
         return df
+    except FileNotFoundError:
+        print("ERROR: dataset_cleaned.csv not found! Please ensure the file is in the same directory as your Python script.")
+        raise FileNotFoundError("dataset_cleaned.csv is required for the dashboard to function")
     except Exception as e:
         print(f"Error loading data: {e}")
-        # Create minimal dummy data if file not found
-        return pd.DataFrame({
-            'City': ['Manila'],
-            'Location': ['Test Location'],
-            'Type': ['Test'],
-            'Involved': ['CAR'],
-            'Time': ['12:00 PM'],
-            'Date': ['2020-01-01'],
-            'Latitude': [14.6],
-            'Longitude': [121.0],
-            'Date_datetime': [pd.Timestamp('2020-01-01')],
-            'Hour': [12],
-            'Month_Name': ['January']
-        })
+        raise e
 
 df = load_and_optimize_data()
 
