@@ -369,9 +369,9 @@ def toggle_theme(n_clicks, current_icon):
         return "☀️", "light-theme"
 
     if current_icon == "☀️":
-        return "🌙", "dark-theme"
+        return "🌙", "dark-theme", "dark"
     else:
-        return "☀️", "light-theme"
+        return "☀️", "light-theme", "light"
 
 def create_vehicle_chart(filtered_df, filters, theme_colors):
     """Create vehicle involvement chart with memory optimization"""
