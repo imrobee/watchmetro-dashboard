@@ -142,17 +142,11 @@ def create_no_data_figure(title, theme_colors, message="No data available"):
     )
     return fig
 
-# Optimize map generation (reduce memory footprint)
-def generate_folium_map(data, theme='light', max_markers=500):
-    """Generate map with marker limit to reduce memory usage"""
+def generate_folium_map(data, theme='light'):
     if data.empty:
         m = folium.Map(location=[14.6, 121.0], zoom_start=11)
         folium.Marker([14.6, 121.0], popup="No data for selected filters").add_to(m)
         return m
-
-    # Limit markers for performance
-    if len(data) > max_markers:
-        data = data.sample(n=max_markers)
 
     center_lat = float(data['Latitude'].mean())
     center_lon = float(data['Longitude'].mean())
@@ -160,9 +154,8 @@ def generate_folium_map(data, theme='light', max_markers=500):
     tiles = 'CartoDB dark_matter' if theme == 'dark' else 'OpenStreetMap'
     m = folium.Map(location=[center_lat, center_lon], zoom_start=11, tiles=tiles)
 
-    # Use MarkerCluster for better performance
+    # Use MarkerCluster to handle large datasets
     cluster = MarkerCluster().add_to(m)
-    
     for _, row in data.iterrows():
         popup = f"<b>{row['City']}</b><br>{row['Time']}<br>{row['Date']}"
         folium.Marker(
@@ -522,7 +515,7 @@ def update_map(apply_clicks, time_filter, month, city, theme):
         filtered_df = df[mask].dropna(subset=['Latitude', 'Longitude'])
         
         # Generate map with limited markers
-        updated_map = generate_folium_map(filtered_df, theme, max_markers=300)
+        updated_map = generate_folium_map(filtered_df, theme)
         
         buffer = BytesIO()
         updated_map.save(buffer, close_file=False)
