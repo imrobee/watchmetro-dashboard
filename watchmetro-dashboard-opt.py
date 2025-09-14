@@ -142,28 +142,34 @@ def create_no_data_figure(title, theme_colors, message="No data available"):
     )
     return fig
 
-def generate_folium_map(data, theme='light'):
+def generate_folium_map(data, theme):
     if data.empty:
         m = folium.Map(location=[14.6, 121.0], zoom_start=11)
         folium.Marker([14.6, 121.0], popup="No data for selected filters").add_to(m)
         return m
 
-    center_lat = float(data['Latitude'].mean())
-    center_lon = float(data['Longitude'].mean())
-    
+    center_lat = data['Latitude'].mean()
+    center_lon = data['Longitude'].mean()
+
+    # Use different tiles based on theme (though the dark theme doesn't look that good)
     tiles = 'CartoDB dark_matter' if theme == 'dark' else 'OpenStreetMap'
     m = folium.Map(location=[center_lat, center_lon], zoom_start=11, tiles=tiles)
 
-    # Use MarkerCluster to handle large datasets
     cluster = MarkerCluster().add_to(m)
     for _, row in data.iterrows():
-        popup = f"<b>{row['City']}</b><br>{row['Time']}<br>{row['Date']}"
+        popup = f"""
+        <b>City:</b> {row['City']}<br>
+        <b>Time:</b> {row['Time']}<br>
+        <b>Date:</b> {row['Date']}<br>
+        <b>Location:</b> {row['Location']}<br>
+        <b>Involved:</b> {row['Involved']}<br>
+        <b>Type:</b> {row['Type']}
+        """
         folium.Marker(
-            location=[float(row['Latitude']), float(row['Longitude'])],
+            location=[row['Latitude'], row['Longitude']],
             popup=popup,
             icon=folium.Icon(color='red', icon='exclamation-triangle', prefix='fa')
         ).add_to(cluster)
-    
     return m
 
 def get_time_range(time_period):
@@ -181,7 +187,7 @@ app = Dash(__name__, suppress_callback_exceptions=True)
 app.title = "WatchMetro: Metro Manila Accidents Dashboard"
 
 # Generate initial map (limited size)
-initial_data = df.dropna(subset=['Latitude', 'Longitude']).head(200)  # Limit initial data
+initial_data = df.dropna(subset=['Latitude', 'Longitude'])  # Limit initial data
 initial_map = generate_folium_map(initial_data, 'light')
 buffer = BytesIO()
 initial_map.save(buffer, close_file=False)
@@ -514,7 +520,6 @@ def update_map(apply_clicks, time_filter, month, city, theme):
         
         filtered_df = df[mask].dropna(subset=['Latitude', 'Longitude'])
         
-        # Generate map with limited markers
         updated_map = generate_folium_map(filtered_df, theme)
         
         buffer = BytesIO()
