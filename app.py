@@ -52,7 +52,7 @@ FONT_STACK = '-apple-system, system-ui, "Segoe UI", Roboto, sans-serif'
 def normalize_type(raw):
     """Fold the dataset's typo variants ('VEHCICULAR ACCIDENT', trailing spaces) into three types."""
     t = re.sub(r"\s+", " ", str(raw or "")).strip().upper()
-    if "MULTIPLE" in t:
+    if "COLLISION" in t:  # also catches typos like 'MLTIPLE COLLISION'
         return "Multiple collision"
     if "SELF" in t:
         return "Self accident"
