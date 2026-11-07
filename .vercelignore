@@ -1,0 +1,8 @@
+# Only app.py, assets/, dataset_cleaned.csv and the config files are needed to run the dashboard.
+dataset.csv
+*.ipynb
+*.pdf
+watchmetro_dashboard.py
+watchmetro-dashboard-opt.py
+__pycache__/
+.venv/
