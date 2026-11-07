@@ -436,7 +436,7 @@ dash_app.layout = html.Div([
                             id="reset-filters-btn", n_clicks=0, className="reset",
                             title="Reset filters", **{"aria-label": "Reset filters"}),
             ], className="field field-apply"),
-            html.P("Driving down EDSA or C5 to visit family in Makati this December? See where and when accidents happened along the way. (All Day, December, Makati City)", className="try-hint"),
+            html.P("Try out: Driving down EDSA or C5 to visit family in Makati this December? See where and when accidents happened along the way. (All Day, December, Makati City)", className="try-hint"),
         ], className="card controls", **{"aria-label": "Filters"}),
 
         html.Section([
