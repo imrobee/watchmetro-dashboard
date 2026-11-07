@@ -313,7 +313,7 @@ app.layout = html.Div([
         html.P("DISCLAIMER: Dashboard presents MMDA traffic incidents (2018-2020).", 
                style={'textAlign': 'center', 'fontSize': '14px', 'opacity': '0.8'}),
         html.Div([
-            html.Div("Authors: Jan Robee Feliciano, Alphonse Juanito Sese", 
+            html.Div("Author: Jan Robee Feliciano", 
                     style={'textAlign': 'center', 'fontSize': '14px'})
         ])
     ], style={'padding': '20px'})
