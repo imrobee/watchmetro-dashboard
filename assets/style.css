@@ -184,6 +184,14 @@ a:hover { color: var(--focus); }
 
 .field { min-width: 0; }
 
+.try-hint {
+  grid-column: 1 / -1;
+  margin: -4px 0 0;
+  font-size: 13px;
+  font-style: italic;
+  color: var(--muted);
+}
+
 .label {
   display: block;
   margin-bottom: 6px;
