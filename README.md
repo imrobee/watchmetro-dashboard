@@ -4,6 +4,8 @@ WatchMetro shows where and when traffic accidents happen on Metro Manila's major
 
 I built it for people who drive or ride on these roads every day: commuters, new drivers, drivers on unfamiliar routes, and anyone with road anxiety. It's one thing to hear that EDSA is dangerous. It's another to see that EDSA Guadalupe alone had 214 reported accidents in this period, and that more accidents were reported at 7 AM than at any other hour. Knowing where and when accidents cluster can help you plan a route or pick a time to leave.
 
+For example, a good use case for this dashboard would be planning the safest time to visit a relative in Makati based on the accident history along your route.
+
 **Live dashboard:** [watchmetro-dashboard.vercel.app](https://watchmetro-dashboard.vercel.app/)
 
 ## What's on the dashboard
