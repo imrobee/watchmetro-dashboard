@@ -118,6 +118,7 @@ a:hover { color: var(--focus); }
   display: grid;
   place-items: center;
   padding: 0;
+  margin-top: 6px;
   cursor: pointer;
   transition: background-color .15s ease, border-color .15s ease;
 }
@@ -231,8 +232,8 @@ a:hover { color: var(--focus); }
   background: var(--accent);
   color: var(--accent-ink);
   font: inherit;
-  font-size: 15px;
-  font-weight: 650;
+  font-size: 14px;
+  font-weight: 600;
   cursor: pointer;
   transition: background-color .12s ease;
 }
@@ -345,7 +346,7 @@ a:hover { color: var(--focus); }
   color: var(--ink-2);
   font-size: 13px;
 }
-.footer p { margin: 0 0 6px; max-width: 80ch; }
+.footer p { margin: 0 0 6px; }
 
 /* ---------- Responsive ---------- */
 @media (max-width: 960px) {
