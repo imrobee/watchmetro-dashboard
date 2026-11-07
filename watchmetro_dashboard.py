@@ -301,19 +301,13 @@ app.layout = html.Div([
             # Bottom row - Authors
             html.Div([
                 html.Div([
-                    html.H4("Authors", style={'margin': '0 0 10px 0', 'fontWeight': 'bold'}),
+                    html.H4("Author", style={'margin': '0 0 10px 0', 'fontWeight': 'bold'}),
                     html.P([
                         "Jan Robee Feliciano - ",
                         html.A("jan_feliciano@dlsu.edu.ph",
                                href="mailto:jan_feliciano@dlsu.edu.ph",
                                className="footer-link")
                     ], style={'margin': '0 0 5px 0', 'fontSize': '14px'}),
-                    html.P([
-                        "Alphonse Juanito Sese - ",
-                        html.A("alphonse_sese@dlsu.edu.ph",
-                               href="mailto:alphonse_sese@dlsu.edu.ph",
-                               className="footer-link")
-                    ], style={'margin': '0', 'fontSize': '14px'})
                 ], style={'textAlign': 'left'}),
                 html.Div([
                     html.H4("WatchMetro Dashboard", style={'margin': '0', 'fontWeight': 'bold'})

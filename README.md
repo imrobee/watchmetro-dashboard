@@ -2,12 +2,12 @@
 
 [![Live Dashboard](https://img.shields.io/badge/Live%20Dashboard-Click%20Here-blue?style=for-the-badge)](https://watchmetro-dashboard-production.up.railway.app/)
 
-A comprehensive interactive dashboard for visualizing traffic accident data across Metro Manila from 2018-2020. Built with Plotly Dash and deployed on Railway.
+A comprehensive interactive dashboard for visualizing traffic accident data across Metro Manila from 2018-2020. Built with Plotly Dash. The app lives in `app.py`, which runs locally, under gunicorn, or on Vercel.
 
 ## Dashboard Features
 
 ### Interactive Visualizations
-- **Interactive Map**: Folium map showing accident locations with clustered markers
+- **Interactive Map**: Folium map of every accident in the dataset (12,633), with clustered markers. Select a pin to see the accident type, location, city, date, time and vehicles involved
 - **Vehicle Involved in Accidents**: Horizontal bar chart showing vehicles most involved in accidents
 - **Total Accidents per Month**: Bar chart displaying accident patterns across months
 - **Accidents by Hour of Day**: Line chart showing accident distribution throughout the day
@@ -30,8 +30,26 @@ A comprehensive interactive dashboard for visualizing traffic accident data acro
 ### Basic Navigation
 1. **Select Filters**: Choose time period, month, and city filters
 2. **Apply Changes**: Click "Apply Filters" to update all visualizations
-3. **Theme Toggle**: Use the toggle in the top-right to switch between dark mode and light mode
+3. **Theme Toggle**: Use the round sun/moon button in the top-right to switch between light and dark mode. The choice is remembered, and the first visit follows your system setting
 4. **Map Interaction**: Click on map markers to view detailed accident information
+
+## Running Locally
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+python app.py            # http://127.0.0.1:8050
+```
+
+Production-style: `gunicorn app:app`.
+
+## Deploying
+
+- **Vercel**: `app.py` is a zero-config Flask entrypoint (`app` is the WSGI server). `vercel.json` keeps the raw dataset, notebooks and PDF out of the function bundle. Run `vercel` from the project root.
+- **Railway / Render**: start command `gunicorn app:app`.
+
+`watchmetro_dashboard.py` and `watchmetro-dashboard-opt.py` are the earlier versions, kept for reference.
 
 ## Data Processing 
 
@@ -52,10 +70,9 @@ Handling Null Values: Rows with null values in 'City', 'Location', or 'Type' wer
 7. **Saving the Cleaned Data**: The processed DataFrame was saved to a new CSV file named "dataset_cleaned.csv".
 *Kindly refer to WatchMetro-Preprocessing.ipynb for more information on data pre-processing and EDA
 
-## Authors
+## Author
 
 - **Jan Robee Feliciano** - [jan_feliciano@dlsu.edu.ph](mailto:jan_feliciano@dlsu.edu.ph)
-- **Alphonse Juanito Sese** - [alphonse_sese@dlsu.edu.ph](mailto:alphonse_sese@dlsu.edu.ph)
 
 ## Data Disclaimer
 
@@ -69,4 +86,4 @@ If you encounter any issues or have suggestions, reach out to Robee Feliciano at
 
 **Live Dashboard**: [https://watchmetro-dashboard-production.up.railway.app/](https://watchmetro-dashboard-production.up.railway.app/)
 
-*Last Updated: August 2025*
+*Last Updated: November 2026*
