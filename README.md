@@ -78,8 +78,7 @@ All of this happens in [WatchMetro_Preprocessing.ipynb](WatchMetro_Preprocessing
 
 ## Technical details
 
-- **Stack.** The app is written in Python with [Dash](https://dash.plotly.com/), Plotly's framework for building dashboards around Python callbacks. pandas does the filtering, Plotly draws the charts, and Folium (a Python wrapper around the Leaflet map library) builds the map. ⟦Why Dash: the preprocessing was already in pandas, so staying in Python kept everything in one language.⟧
-- **The map.** Folium writes the whole map as an HTML page, which the dashboard shows in an iframe. It uses `FastMarkerCluster`, which sends the points as a plain list and creates the pins in the browser. The older version created one marker object per accident on the server, which is what made it heavy. Each filter combination is built once and then kept in memory, so applying the same filters again is fast.
+- **Map Visualization.** Folium writes the whole map as an HTML page, which the dashboard shows in an iframe. It uses `FastMarkerCluster`, which sends the points as a plain list and creates the pins in the browser. The older version created one marker object per accident on the server, which is what made it heavy. Each filter combination is built once and then kept in memory, so applying the same filters again is fast.
 - **Base map.** The map tiles come from OpenStreetMap. An earlier version used CARTO's free tiles, but CARTO now requires an API key, so they stopped loading. Dark mode uses the same tiles, inverted with a CSS filter, so there's still no key to manage.
 - **Accident types.** The 12,633 kept rows spell their type 58 different ways, from typos like "MLTIPLE COLLISION" to a few rows where the whole tweet landed in the type column. The pin popups group them into three labels: Vehicular accident (11,736), Multiple collision (635) and Self accident (262).
 
@@ -103,6 +102,11 @@ To deploy on Vercel, run `vercel` from the project folder. Vercel picks up `app.
 
 WatchMetro started as my final project for DATANVI ⟦(data visualization)⟧ at De La Salle University, in the third term of academic year 2024 to 2025. The PDF report in this repo covers the original proposal, the prototypes and the first finished version.
 
-## Contact
+## Tech Stack
 
-Questions or suggestions: Robee Feliciano, [robee.feliciano@gmail.com](mailto:robee.feliciano@gmail.com).
+The app is written in Python with [Dash](https://dash.plotly.com/), Plotly's framework for building dashboards around Python callbacks. pandas does the filtering, Plotly draws the charts, and Folium (a Python wrapper around the Leaflet map library) builds the map. ⟦Why Dash: the preprocessing was already in pandas, so staying in Python kept everything in one language.⟧
+
+![Python](https://img.shields.io/badge/python-%233670A0.svg?style=for-the-badge&logo=python&logoColor=ffdd54)
+![Plotly](https://img.shields.io/badge/plotly-%237A76FF.svg?style=for-the-badge&logo=plotly&logoColor=white)
+![Pandas](https://img.shields.io/badge/pandas-%23150458.svg?style=for-the-badge&logo=pandas&logoColor=white)
+
