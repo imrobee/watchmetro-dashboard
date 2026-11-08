@@ -8,6 +8,15 @@ For example, a good use case for this dashboard would be planning the safest tim
 
 **Live dashboard:** [watchmetro-dashboard.vercel.app](https://watchmetro-dashboard.vercel.app/)
 
+## Tech Stack
+
+The app is written in Python with [Dash](https://dash.plotly.com/), Plotly's framework for building dashboards around Python callbacks. pandas does the filtering, Plotly draws the charts, and Folium (a Python wrapper around the Leaflet map library) builds the map. ⟦Why Dash: the preprocessing was already in pandas, so staying in Python kept everything in one language.⟧
+
+![Python](https://img.shields.io/badge/python-%233670A0.svg?style=for-the-badge&logo=python&logoColor=ffdd54)
+![Plotly](https://img.shields.io/badge/plotly-%237A76FF.svg?style=for-the-badge&logo=plotly&logoColor=white)
+![Pandas](https://img.shields.io/badge/pandas-%23150458.svg?style=for-the-badge&logo=pandas&logoColor=white)
+
+
 ## What's on the dashboard
 
 **Accident locations.** A map with a pin for every accident. Nearby pins group into numbered clusters, and the clusters break apart as you zoom in. A darker cluster holds more accidents. Hover over a cluster to outline the area it covers. Select a pin to see what happened, for example:
@@ -32,10 +41,6 @@ For example, a good use case for this dashboard would be planning the safest tim
 Pick your filters, then select **Apply filters**. The map and charts update together, and a spinner shows on each card while it loads. The button with the funnel icon, next to Apply, resets everything to All Day, all months and all cities.
 
 The dashboard starts in light or dark mode to match your browser. The sun and moon button in the top-right corner switches it.
-
-## Planned features
-
-- **Road Filter:** Filter the selection by road (e.g., C-5, EDSA) for better route planning.
 
 ## Where the data comes from
 
@@ -106,11 +111,8 @@ To deploy on Vercel, run `vercel` from the project folder. Vercel picks up `app.
 
 WatchMetro started as my final project for DATANVI ⟦(data visualization)⟧ at De La Salle University, in the third term of academic year 2024 to 2025. The PDF report in this repo covers the original proposal, the prototypes and the first finished version.
 
-## Tech Stack
+## Planned features
 
-The app is written in Python with [Dash](https://dash.plotly.com/), Plotly's framework for building dashboards around Python callbacks. pandas does the filtering, Plotly draws the charts, and Folium (a Python wrapper around the Leaflet map library) builds the map. ⟦Why Dash: the preprocessing was already in pandas, so staying in Python kept everything in one language.⟧
+- **Road Filter:** Filter the selection by road (e.g., C-5, EDSA) for better route planning.
 
-![Python](https://img.shields.io/badge/python-%233670A0.svg?style=for-the-badge&logo=python&logoColor=ffdd54)
-![Plotly](https://img.shields.io/badge/plotly-%237A76FF.svg?style=for-the-badge&logo=plotly&logoColor=white)
-![Pandas](https://img.shields.io/badge/pandas-%23150458.svg?style=for-the-badge&logo=pandas&logoColor=white)
 
