@@ -33,6 +33,10 @@ Pick your filters, then select **Apply filters**. The map and charts update toge
 
 The dashboard starts in light or dark mode to match your browser. The sun and moon button in the top-right corner switches it.
 
+## Planned features
+
+- **Road Filter:** Filter the selection by road (e.g., C-5, EDSA) for better route planning.
+
 ## Where the data comes from
 
 The data is the [MMDA Traffic Incident Data](https://www.kaggle.com/datasets/esparko/mmda-traffic-incident-data/) set on Kaggle, compiled by Panji Brotoisworo. The MMDA posts traffic alerts on its Twitter account, like this one:
